@@ -25,7 +25,7 @@ void setup(void) {
 
 void loop() {
 
-  pushButton = digitalRead(2);  // ler pushButton
+  pushButton = digitalRead(2);  // read pushButton
 
   if (!nfc.tagPresent()) {
     if (pushButton == HIGH) {
