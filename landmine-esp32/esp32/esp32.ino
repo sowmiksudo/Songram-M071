@@ -108,47 +108,9 @@ void setup() {
 uint32_t x = 0;
 
 void loop() {
-  // put your main code here, to run repeatedly:
-  uint8_t success;
-  uint8_t uid[] = { 0, 0, 0, 0, 0, 0, 0 };  // Buffer to store the returned UID
-  uint8_t uidLength;
-  uint16_t timeout = 1000;
-  
-  pushButton = digitalRead(pushButtonPin);  // read pushButton
-  success = nfc.readPassiveTargetID(PN532_MIFARE_ISO14443A, uid, &uidLength, timeout);
-  tagId = "";
-  // for (byte i = 0; i <= uidLength - 1; i++) {
-  //   tagId += (uid[i] < 0x10 ? "0" : "") + String(uid[i], HEX);
-  // }
-  // Serial.println(tagId);
+  //// Wifi
 
-
-  // Serial.println("Button reading");
-
-  digitalWrite(redLedPin, LOW);
-  digitalWrite(greenLedPin, LOW);
-  if (!success) {
-    if (pushButton == HIGH) {
-      digitalWrite(buzzerPin, LOW);
-      digitalWrite(redLedPin, LOW);
-    } else {
-      digitalWrite(buzzerPin, HIGH);
-      digitalWrite(redLedPin, HIGH);
-    }
-  } else {
-    Serial.println("[o] Detected NFC Scan!!");
-    text_logs.publish("[o] Detected NFC Scan!!")
-    if (pushButton == HIGH) {
-      digitalWrite(greenLedPin, LOW);
-    } else {
-      digitalWrite(greenLedPin, HIGH);
-    }
-    // }
-  }
-
-  //// Wifi 
-
-  MQTT_connect();
+  MQTT_connect();  //
 
   Adafruit_MQTT_Subscribe *subscription;
   while ((subscription = mqtt.readSubscription(5000))) {
@@ -158,14 +120,57 @@ void loop() {
       Serial.println((char *)onoffbutton.lastread);
       if (strcmp((char *)onoffbutton.lastread, "true") == 0) {
         isOn = true;
-        text_logs.publish("[X] Songram M321879 is now active!!");
+        text_logs.publish("[X] Songram (M071_321879) is now active!!");
       }
       if (strcmp((char *)onoffbutton.lastread, "false") == 0) {
         isOn = false;
-        text_logs.publish("[X] Songram M321879 has been set to maintanance mode.");
+        text_logs.publish("[X] Songram (M071_321879) has been set to maintanance mode.");
       }
     }
   }
+
+  // -- Reading NFC RFID Tags and doing the main process -- 
+
+  uint8_t success;
+  uint8_t uid[] = { 0, 0, 0, 0, 0, 0, 0 };  // Buffer to store the returned UID
+  uint8_t uidLength;
+  uint16_t timeout = 1000;
+
+  pushButton = digitalRead(pushButtonPin);  // read pushButton
+  success = nfc.readPassiveTargetID(PN532_MIFARE_ISO14443A, uid, &uidLength, timeout);
+  tagId = "";
+  // for (byte i = 0; i <= uidLength - 1; i++) {
+  //   tagId += (uid[i] < 0x10 ? "0" : "") + String(uid[i], HEX);
+  // }
+  // Serial.println(tagId);
+
+  // Don't know why but reading rfid tag stops the rest of the code !!
+
+  digitalWrite(redLedPin, LOW);
+  digitalWrite(greenLedPin, LOW);
+  if (isOn == true) {
+    if (!success) {
+      if (pushButton == HIGH) {
+        digitalWrite(buzzerPin, LOW);
+        digitalWrite(redLedPin, LOW);
+      } else {
+        digitalWrite(buzzerPin, HIGH);
+        digitalWrite(redLedPin, HIGH);
+      }
+    } else {
+      Serial.println("[o] Detected NFC Scan!!");
+      text_logs.publish("[o] Detected NFC Scan!!");
+      if (pushButton == HIGH) {
+        digitalWrite(greenLedPin, LOW);
+      } else {
+        digitalWrite(greenLedPin, HIGH);
+      }
+      // }
+    }
+  } else {
+    digitalWrite(greenLedPin, HIGH);
+  }
+
 
   // ping the server to keep the mqtt connection alive
   if (!mqtt.ping()) {
