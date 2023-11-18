@@ -34,12 +34,15 @@ Adafruit_MQTT_Publish text_logs = Adafruit_MQTT_Publish(&mqtt, TEXT_LOGS);
 
 const String SONGRAM_ID = "M321879";
 String tagId;
-bool isOn = true;
+bool isOn = true; 
 const int greenLedPin = 33;
 const int redLedPin = 32;
 const int buzzerPin = 2;
 const int pushButtonPin = 4;
 
+float lat = "23.75353838231597";
+float lng = "90.38740482735874";
+// {"value": 0, "lat": "23.75353838231597", "lon": "90.38740482735874"}
 int pushButton = 0;
 int redLed = 0;
 int greenLed = 0;
