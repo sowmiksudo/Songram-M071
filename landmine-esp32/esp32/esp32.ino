@@ -1,9 +1,9 @@
 #include <SPI.h>
 #include <Adafruit_PN532.h>
-#include "Adafruit_MQTT.h"
-#include "Adafruit_MQTT_Client.h"
+#include <PubSubClient.h>
 #include <WiFi.h>
 #include <WiFiClient.h>
+#include <CuteBuzzerSounds.h>
 
 
 #define PN532_SCK (18)
@@ -21,42 +21,90 @@
 #define AIO_USERNAME "sowmik"
 #define AIO_KEY "aio_OUMR98844pbCe9iIRa2DQxZHZ6TX"
 
+const char* ssid = "Tenda";
+const char* password = "1234567890";
+const char* mqttServer = "io.adafruit.com";
+const int mqttPort = 1883;
+const char* mqttUser = "sowmik";
+const char* mqttPassword = "aio_OUMR98844pbCe9iIRa2DQxZHZ6TX";
+const char* mqttTopic = AIO_USERNAME "/feeds/songram_activation";
+const char* locTopic = AIO_USERNAME "/feeds/m071_location/csv";
+
 Adafruit_PN532 nfc(PN532_SCK, PN532_MISO, PN532_MOSI, PN532_SS);
 
-
-WiFiClient client;
-Adafruit_MQTT_Client mqtt(&client, AIO_SERVER, AIO_SERVERPORT, AIO_USERNAME, AIO_USERNAME, AIO_KEY);
-
-Adafruit_MQTT_Subscribe onoffbutton = Adafruit_MQTT_Subscribe(&mqtt, AIO_USERNAME "/feeds/songram_activation");
-const char TEXT_LOGS[] PROGMEM = AIO_USERNAME "/feeds/m071_np532";
-Adafruit_MQTT_Publish text_logs = Adafruit_MQTT_Publish(&mqtt, TEXT_LOGS);
-
+WiFiClient espWifi;
+PubSubClient client(espWifi);
 
 const String SONGRAM_ID = "M321879";
 String tagId;
-bool isOn = true; 
+String activationState;
+bool isOn = true;
 const int greenLedPin = 33;
 const int redLedPin = 32;
 const int buzzerPin = 2;
 const int pushButtonPin = 4;
 
-float lat = "23.75353838231597";
-float lng = "90.38740482735874";
-// {"value": 0, "lat": "23.75353838231597", "lon": "90.38740482735874"}
 int pushButton = 0;
 int redLed = 0;
 int greenLed = 0;
+// {"value": 0, "lat": "23.75353838231597", "lon": "90.38740482735874"}
+String bt = "67";
+String HOME_LAT = "23.75353838231597";
+String HOME_LNG = "90.38740482735874";
+String LOCATION_STR = "0," + HOME_LAT + "," + HOME_LNG +"," + "6";
+
+void setup_wifi() {
+  // We start by connecting to a WiFi network
+  Serial.println();
+  Serial.print("Connecting to ");
+  Serial.println(ssid);
+
+  WiFi.begin(ssid, password);
+
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    Serial.print(".");
+  }
+
+  Serial.println("");
+  Serial.println("WiFi connected");
+  Serial.println("IP address: ");
+  Serial.println(WiFi.localIP());
+}
+
+// Callback function
+void callback(char* topic, byte* message, unsigned int length) {
+  Serial.print("Message arrived on topic: ");
+  Serial.print(topic);
+  Serial.print(". Message: ");
+  activationState = "";
+  for (int i = 0; i < length; i++) {
+    Serial.print((char)message[i]);
+    activationState += (char)message[i];
+  }
+  Serial.println();
+
+  // Feel free to add more if statements to control more GPIOs with MQTT
+
+  // If a message is received on the topic esp32/output, you check if the message is either "on" or "off".
+  // Changes the output state according to the message
+  if (String(topic) == "sowmik/feeds/songram_activation") {
+    Serial.print("Changing output to " + activationState);
+    String message;
+    if (activationState == "true") {
+      isOn = true;
+      message = "[O] SONGRAM (M071_32874) IS NOW ACTIVE.";
+      client.publish("sowmik/feeds/m071_np532", message.c_str());
+    } else if (activationState == "false") {
+      isOn = false;
+      message = "[X] SONGRAM (M071_32874) IS NOW DISABLED.";
+      client.publish("sowmik/feeds/m071_np532", message.c_str());
+    }
+  }
+}
 
 
-void MQTT_connect();
-
-void setup() {
-  pinMode(pushButtonPin, INPUT_PULLUP);
-  pinMode(buzzerPin, OUTPUT);
-  pinMode(greenLedPin, OUTPUT);
-  pinMode(redLedPin, OUTPUT);
-  // put your setup code here, to run once:
-  Serial.begin(9600);
+void setup_nfc() {
   nfc.begin();
   uint32_t versiondata = nfc.getFirmwareVersion();
   if (!versiondata) {
@@ -71,68 +119,61 @@ void setup() {
   Serial.print('.');
   Serial.println((versiondata >> 8) & 0xFF, DEC);
   nfc.SAMConfig();
+}
 
+void setup() {
+  pinMode(pushButtonPin, INPUT_PULLUP);
+  pinMode(buzzerPin, OUTPUT);
+  pinMode(greenLedPin, OUTPUT);
+  pinMode(redLedPin, OUTPUT);
+  cute.init(buzzerPin);
+  cute.play(S_SURPRISE);
 
-  Serial.println(F("Adafruit MQTT Connection"));
+  Serial.begin(9600);
+  setup_nfc();
+  delay(200);
+  setup_wifi();
+  delay(200);
+  // Setup MQTT subscription for onoff feed.
 
-  // Connect to WiFi access point.
-  Serial.println();
-  Serial.println();
-  Serial.print("Connecting to ");
-  Serial.println(WLAN_SSID);
-
-  WiFi.begin(WLAN_SSID, WLAN_PASS);
-  while (WiFi.status() != WL_CONNECTED) {
-    delay(500);
-    Serial.print(".");
+  client.setServer(mqttServer, mqttPort);
+  client.setCallback(callback);
+  Serial.println("Connecting to MQTT…");
+  while (!client.connected()) {
+    String clientId = "Songram-Client";
+    clientId += String(random(0xffff), HEX);
+    if (client.connect(clientId.c_str(), mqttUser, mqttPassword)) {
+      Serial.println("connected");
+    } else {
+      Serial.print("failed with state  ");
+      Serial.println(client.state());
+      delay(2000);
+    }
   }
-  Serial.println();
-
-  Serial.println("WiFi connected");
-  Serial.println("IP address: ");
-  Serial.println(WiFi.localIP());
-  delay(3000);
-  // Setup MQTT subscription for onoff & slider feed.
-  mqtt.subscribe(&onoffbutton);
-  // start up animation
-
-  // for (int i = 0; i < 10; i++) {
-  //   digitalWrite(greenLedPin, HIGH);
-  //   digitalWrite(buzzerPin, LOW);
-  //   delay(300);
-  //   digitalWrite(buzzerPin, HIGH);
-  //   digitalWrite(greenLedPin, LOW);
-  //   digitalWrite(redLedPin, HIGH);
-  //   delay(300);
-  //   digitalWrite(redLedPin, LOW);
-  // }
+  client.subscribe(mqttTopic);
+  client.publish("sowmik/feeds/m071_battery", bt.c_str());
+  client.publish("sowmik/feeds/m071_location/csv", LOCATION_STR.c_str());
+  Serial.println(LOCATION_STR);
+  cute.play(S_CONNECTION);
 }
 
 uint32_t x = 0;
 
 void loop() {
-  //// Wifi
-
-  MQTT_connect();  //
-
-  Adafruit_MQTT_Subscribe *subscription;
-  while ((subscription = mqtt.readSubscription(5000))) {
-    // Check if its the onoff button feed
-    if (subscription == &onoffbutton) {
-      Serial.print(F("On-Off button: "));
-      Serial.println((char *)onoffbutton.lastread);
-      if (strcmp((char *)onoffbutton.lastread, "true") == 0) {
-        isOn = true;
-        text_logs.publish("[X] Songram (M071_321879) is now active!!");
-      }
-      if (strcmp((char *)onoffbutton.lastread, "false") == 0) {
-        isOn = false;
-        text_logs.publish("[X] Songram (M071_321879) has been set to maintanance mode.");
-      }
-    }
+  String msg;
+  if (!client.connected()) {
+    reconnect();
   }
+  client.loop();
+  // if (isOn) {
+  //   msg = "[x] Songram is now ACTIVE!";
+  //   Serial.println(msg);
+  // } else {
+  //   msg = "[x] Songram is now DISABLED.";
+  //   Serial.println(msg);
+  // }
 
-  // -- Reading NFC RFID Tags and doing the main process -- 
+
 
   uint8_t success;
   uint8_t uid[] = { 0, 0, 0, 0, 0, 0, 0 };  // Buffer to store the returned UID
@@ -142,68 +183,64 @@ void loop() {
   pushButton = digitalRead(pushButtonPin);  // read pushButton
   success = nfc.readPassiveTargetID(PN532_MIFARE_ISO14443A, uid, &uidLength, timeout);
   tagId = "";
-  // for (byte i = 0; i <= uidLength - 1; i++) {
-  //   tagId += (uid[i] < 0x10 ? "0" : "") + String(uid[i], HEX);
-  // }
+  for (byte i = 0; i <= uidLength - 1; i++) {
+    tagId += (uid[i] < 0x10 ? "0" : "") + String(uid[i], HEX);
+  }
   // Serial.println(tagId);
 
   // Don't know why but reading rfid tag stops the rest of the code !!
 
   digitalWrite(redLedPin, LOW);
   digitalWrite(greenLedPin, LOW);
-  if (isOn == true) {
-    if (!success) {
-      if (pushButton == HIGH) {
-        digitalWrite(buzzerPin, LOW);
-        digitalWrite(redLedPin, LOW);
-      } else {
-        digitalWrite(buzzerPin, HIGH);
-        digitalWrite(redLedPin, HIGH);
-      }
+  if(isOn){
+  if (!success) {
+    if (pushButton == HIGH) {
+      digitalWrite(redLedPin, LOW);
     } else {
-      Serial.println("[o] Detected NFC Scan!!");
-      text_logs.publish("[o] Detected NFC Scan!!");
-      if (pushButton == HIGH) {
-        digitalWrite(greenLedPin, LOW);
-      } else {
-        digitalWrite(greenLedPin, HIGH);
+      digitalWrite(redLedPin, HIGH);
+      msg = "[X] AN ENEMY HAS PRESSED THE MINE! SONGRAM ID :: M071_32874";
+      client.publish("sowmik/feeds/m071_np532", msg.c_str());
+      for (int i = 0; i < 3; i++) {
+        cute.play(S_FART1);
+        cute.play(S_FART2);
       }
-      // }
     }
   } else {
-    digitalWrite(greenLedPin, HIGH);
+    Serial.println("[o] Detected NFC Scan!!");
+    if (pushButton == HIGH) {
+      digitalWrite(greenLedPin, LOW);
+    } else {
+      digitalWrite(greenLedPin, HIGH);
+      msg = "[X] OUR SOLDIER HAS PRESSED THE MINE! SONGRAM ID:: M071_32874 | SOLDIER ID :: " + tagId;
+      client.publish("sowmik/feeds/m071_np532", msg.c_str());
+      delay(3000);
+    }
   }
-
-
-  // ping the server to keep the mqtt connection alive
-  if (!mqtt.ping()) {
-    mqtt.disconnect();
+  } else {
+    delay(300);
+    digitalWrite(greenLedPin, HIGH);
+    digitalWrite(redLedPin, HIGH);
   }
 }
 
-// Function to connect and reconnect as necessary to the MQTT server.
-// Should be called in the loop function and it will take care if connecting.
-void MQTT_connect() {
-  int8_t ret;
 
-  // Stop if already connected.
-  if (mqtt.connected()) {
-    return;
-  }
+// MQTT reconnect
 
-  Serial.print("Connecting to MQTT... ");
-
-  uint8_t retries = 3;
-  while ((ret = mqtt.connect()) != 0) {  // connect will return 0 for connected
-    Serial.println(mqtt.connectErrorString(ret));
-    Serial.println("Retrying MQTT connection...");
-    mqtt.disconnect();
-    retries--;
-    if (retries == 0) {
-      // basically die and wait for WDT to reset me
-      while (1)
-        ;
+void reconnect() {
+  // Loop until we're reconnected
+  while (!client.connected()) {
+    Serial.print("Attempting MQTT connection...");
+    // Attempt to connect
+    if (client.connect("Songram-Client")) {
+      Serial.println("connected");
+      // Subscribe
+      client.subscribe(mqttTopic);
+    } else {
+      Serial.print("failed, rc=");
+      Serial.print(client.state());
+      Serial.println(" try again in 5 seconds");
+      // Wait 5 seconds before retrying
+      delay(5000);
     }
   }
-  Serial.println("MQTT Connected!");
 }
