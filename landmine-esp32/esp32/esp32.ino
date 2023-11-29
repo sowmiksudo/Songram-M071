@@ -142,7 +142,7 @@ void setup() {
   pinMode(greenLedPin, OUTPUT);
   pinMode(redLedPin, OUTPUT);
   cute.init(buzzerPin);
-  cute.play(S_SURPRISE);
+  cute.play(S_MODE1);
 
   Serial.begin(9600);
   Serial2.begin(9600);
@@ -169,7 +169,7 @@ void setup() {
   http.begin("https://api.weatherapi.com/v1/current.json?key=8b281a65e8894d57ac3113033232611&aqi=no&q=" + LAT_LNG);
   int httpCode = http.GET();
   String payload = http.getString();
-  
+
   Serial.println(payload);
 
   StaticJsonDocument<1536> doc;
@@ -212,7 +212,7 @@ void setup() {
   float current_gust_mph = current["gust_mph"];        // 8.4
   float current_gust_kph = current["gust_kph"];        // 13.5
 
-  String wind_dir = String(current_wind_degree) + "° " +current_wind_dir;
+  String wind_dir = String(current_wind_degree) + "° " + current_wind_dir;
   String weather_data = "\n";
   weather_data += "Temperature  ::  ";
   weather_data += String(current_temp_c, 1);
@@ -310,9 +310,9 @@ void loop() {
         digitalWrite(redLedPin, HIGH);
         msg = "[X] AN ENEMY HAS PRESSED THE MINE! SONGRAM ID :: M071_32874";
         client.publish("sowmik/feeds/m071_np532", msg.c_str());
-        for (int i = 0; i < 3; i++) {
-          cute.play(S_FART1);
-          cute.play(S_FART2);
+        cute.play(S_MODE2);
+        for (int i = 0; i < 4; i++) {
+          cute.play(S_MODE3);
         }
       }
     } else {
