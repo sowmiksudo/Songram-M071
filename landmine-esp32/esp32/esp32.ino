@@ -60,8 +60,8 @@ int pushButton = 0;
 int redLed = 0;
 int greenLed = 0;
 String bt = "82";
-String HOME_LAT = "23.776924287083087";
-String HOME_LNG = "90.3907966483282";
+String HOME_LAT = "23.7781845";
+String HOME_LNG = "90.3915288";
 // String HOME_LAT = "23.75353838231597"; HOME
 // String HOME_LNG = "90.38740482735874";
 
