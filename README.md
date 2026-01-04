@@ -14,7 +14,7 @@
 
 | **Command & Control (C2) Dashboard** | **Hardware Unit (Active)** |
 | :---: | :---: |
-| <img src="./assets/dashboard.jpg" width="100%" alt="Songram C2 Dashboard"> | <img src="./assets/hardware-side.jpg" width="100%" alt="Songram Hardware Unit"> |
+| <img src="./assets/dashboard.png" width="100%" alt="Songram C2 Dashboard"> | <img src="./assets/hardware-side.jpg" width="100%" alt="Songram Hardware Unit"> |
 | *Real-time geospatial tracking & logs* | *ESP32 + Arduino Dual-Core Architecture* |
 
 ---
