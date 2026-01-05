@@ -6,7 +6,8 @@
 ![IoT Stack](https://img.shields.io/badge/Protocol-MQTT-purple)
 ![License](https://img.shields.io/badge/License-MIT-green)
 
-![Songram-M071](assets/2.png)
+<img src="assets/1.png" alt="Songram-M071"/>
+
 **Songram-M071** is a prototype **Smart Area Denial System** designed to modernize tactical defense operations. Unlike traditional static countermeasures, Songram-M071 utilizes a **Master-Slave architecture** (ESP32 + Arduino) to provide remote arming/disarming, real-time GPS tracking, and "Friend-or-Foe" (IFF) identification via a centralized Command & Control (C2) dashboard.
 
 ---
